@@ -537,7 +537,7 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 // ── 權限檢查：僅 admin 角色可使用安置系統 ──
-const placementRole = sessionStorage.getItem('placement_role');
+const placementRole = localStorage.getItem('placement_role');
 if (placementRole !== 'admin') {
   alert('您的帳號無權使用安置系統。');
   window.location.href = 'index.html';

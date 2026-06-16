@@ -714,6 +714,13 @@ function rc4(keyBytes, dataBytes) {
 
 // ── Password Authentication & Encryption System ──
 (function() {
+  // 瀏覽器關閉後自動清除登入狀態：用 sessionStorage 作為「瀏覽器 session 存活旗標」
+  if (!sessionStorage.getItem('placement_session_active')) {
+    localStorage.removeItem('placement_master_key');
+    localStorage.removeItem('placement_role');
+    sessionStorage.setItem('placement_session_active', '1');
+  }
+
   const encKeys = ['HRd6HhNDaqxDCiUhqKZdGq4FhEPdWSbzG/yt9Q==', 'o1jOOwL+rpztQOR1qEdTKDMYI7dqllCQMUvosQ==', 'arVj/I9hTyjNvbxqXX9gxYAPDh+iEtn1SCYl5w=='];
   const overlay = document.getElementById('authOverlay');
   const input = document.getElementById('authPassword');
@@ -749,21 +756,21 @@ function rc4(keyBytes, dataBytes) {
   }
 
   function applyRole(role) {
-    sessionStorage.setItem('placement_role', role);
+    localStorage.setItem('placement_role', role);
     if (role === 'viewer') {
       document.getElementById('btnPlacementSystem').style.display = 'none';
     }
   }
 
-  // Check sessionStorage for master key
-  const storedMasterKeyB64 = sessionStorage.getItem('placement_master_key');
+  // Check localStorage for master key
+  const storedMasterKeyB64 = localStorage.getItem('placement_master_key');
   if (storedMasterKeyB64) {
     overlay.style.display = 'none';
     // Decrypt immediately
     const masterKeyBytes = Uint8Array.from(atob(storedMasterKeyB64), c => c.charCodeAt(0));
     window.decryptedPdfBytes = rc4(masterKeyBytes, Uint8Array.from(atob(encPdfB64), c => c.charCodeAt(0)));
     // Restore role
-    const storedRole = sessionStorage.getItem('placement_role') || 'viewer';
+    const storedRole = localStorage.getItem('placement_role') || 'viewer';
     applyRole(storedRole);
     // Restore last viewed student
     setTimeout(restoreLastStudent, 0);
@@ -776,7 +783,7 @@ function rc4(keyBytes, dataBytes) {
     const result = tryDecryptMasterKey(input.value);
     if (result) {
       const masterKeyB64 = btoa(String.fromCharCode.apply(null, result.bytes));
-      sessionStorage.setItem('placement_master_key', masterKeyB64);
+      localStorage.setItem('placement_master_key', masterKeyB64);
       applyRole(result.role);
       overlay.style.display = 'none';
       document.body.style.overflow = '';
