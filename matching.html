@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>教師/學生/班級配對系統</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif;
+  background: #f0f2f5;
+  color: #1a1a2e;
+  min-height: 100vh;
+}
+
+/* Header */
+.header {
+  background: linear-gradient(135deg, #1a3a5c 0%, #2d5a87 50%, #1a3a5c 100%);
+  color: #fff;
+  padding: 12px 24px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.header h1 { font-size: 1.25rem; letter-spacing: 0.05em; }
+
+/* Toolbar */
+.toolbar {
+  display: flex;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #fff;
+  border-bottom: 1px solid #e0e0e0;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.toolbar .spacer { flex: 1; }
+.toolbar button {
+  padding: 7px 14px;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-family: inherit;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.toolbar button:hover { background: #edf2f7; border-color: #2d5a87; }
+.toolbar .btn-test {
+  background: #e8f0fe;
+  border-color: #b8d4fe;
+  color: #1a3a5c;
+  font-weight: 600;
+}
+.toolbar .btn-test:hover { background: #d0e4ff; border-color: #2d5a87; }
+.toolbar .btn-danger { color: #c0392b; border-color: #f0c8c8; }
+.toolbar .btn-danger:hover { background: #fef0f0; border-color: #c0392b; }
+.toolbar .btn-counseling {
+  background: #2e8b57;
+  color: #fff;
+  border-color: #2e8b57;
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 9px 22px;
+}
+.toolbar .btn-counseling:hover { background: #236b43; border-color: #236b43; }
+.toolbar .btn-placement {
+  background: #e8a838;
+  color: #fff;
+  border-color: #e8a838;
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 9px 22px;
+}
+.toolbar .btn-placement:hover { background: #c98a1d; border-color: #c98a1d; }
+
+/* Main Layout */
+.main {
+  display: flex;
+  height: calc(100vh - 128px);
+}
+
+/* Columns */
+.column {
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+}
+.student-col {
+  flex: 2;
+  background: #fff;
+  border-right: 1px solid #e0e0e0;
+  min-width: 280px;
+}
+.teacher-col {
+  flex: 1;
+  background: #fafbfc;
+  border-right: 1px solid #e0e0e0;
+  min-width: 140px;
+}
+.class-col {
+  flex: 1;
+  background: #fafbfc;
+  min-width: 140px;
+}
+
+/* Column Header */
+.col-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+  border-bottom: 2px solid #2d5a87;
+  position: sticky;
+  top: 0;
+  background: inherit;
+  z-index: 2;
+}
+.col-header .col-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1a3a5c;
+}
+.col-header .col-count {
+  font-size: 0.68rem;
+  color: #8899a6;
+  font-weight: 400;
+}
+.col-header input {
+  flex: 1;
+  min-width: 60px;
+  padding: 6px 10px;
+  border: 1px solid #d0d0d0;
+  border-radius: 5px;
+  font-family: inherit;
+  font-size: 0.8rem;
+}
+.col-header input:focus {
+  outline: none;
+  border-color: #2d5a87;
+}
+.col-header .btn-add {
+  padding: 6px 10px;
+  border: none;
+  border-radius: 5px;
+  background: #2d5a87;
+  color: #fff;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+.col-header .btn-add:hover { background: #1a3a5c; }
+
+/* Student Card */
+.student-card {
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 10px;
+  transition: box-shadow 0.15s;
+}
+.student-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+
+.student-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.student-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.btn-del-student {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: #c0392b;
+  cursor: pointer;
+  font-size: 1.1rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.3;
+  transition: all 0.15s;
+  line-height: 1;
+}
+.student-card:hover .btn-del-student { opacity: 1; }
+.btn-del-student:hover { background: #fef0f0; }
+
+/* Drop Zones Row */
+.student-slots {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.drop-zone {
+  flex: 1;
+  min-height: 38px;
+  border: 2px dashed #c8d4e0;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.82rem;
+  color: #a0b0bb;
+  transition: all 0.2s;
+  position: relative;
+  padding: 6px 8px;
+  text-align: center;
+}
+.drop-zone.drag-over {
+  border-color: #2d5a87;
+  background: rgba(45, 90, 135, 0.08);
+}
+.drop-zone.filled {
+  background: #e8f0fe;
+  border: 2px solid #2d5a87;
+  color: #1a3a5c;
+  font-weight: 600;
+  cursor: default;
+}
+.drop-zone .slot-label {
+  font-size: 0.68rem;
+  color: #8899a6;
+}
+.drop-zone.filled .slot-label { display: none; }
+.drop-zone .slot-content {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #1a3a5c;
+  display: none;
+}
+.drop-zone.filled .slot-content { display: inline; }
+
+/* Remove assignment button */
+.btn-unassign {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 50%;
+  background: #c0392b;
+  color: #fff;
+  font-size: 0.6rem;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  z-index: 1;
+}
+.drop-zone.filled:hover .btn-unassign { display: flex; }
+
+/* Teacher & Class Draggable Items */
+.drag-item {
+  background: #fff;
+  border: 1px solid #d0d8e0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: all 0.15s;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.drag-item:hover {
+  border-color: #2d5a87;
+  box-shadow: 0 2px 6px rgba(45, 90, 135, 0.15);
+}
+.drag-item:active { cursor: grabbing; }
+.drag-item.dragging { opacity: 0.4; border-style: dashed; }
+.drag-item .drag-handle {
+  margin-right: 8px;
+  color: #c0c8d4;
+  font-size: 0.85rem;
+  cursor: grab;
+}
+.drag-item .drag-name {
+  flex: 1;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #1a3a5c;
+}
+.drag-item .btn-del-item {
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: transparent;
+  color: #aaa;
+  cursor: pointer;
+  font-size: 0.9rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.3;
+  transition: all 0.15s;
+}
+.drag-item:hover .btn-del-item { opacity: 1; }
+.drag-item .btn-del-item:hover { color: #c0392b; background: #fef0f0; }
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: 24px 12px;
+  color: #b0b8c0;
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+
+/* Modal Overlay */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  background: rgba(15, 23, 42, 0.65);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+  max-width: 90vw;
+  max-height: 85vh;
+  overflow-y: auto;
+  padding: 28px 28px 20px;
+  min-width: 380px;
+}
+.modal h2 {
+  font-size: 1.15rem;
+  margin-bottom: 18px;
+  color: #1a3a5c;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #e8a838;
+}
+.modal table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
+  font-size: 0.9rem;
+}
+.modal thead th {
+  background: #2d5a87;
+  color: #fff;
+  padding: 10px 14px;
+  text-align: left;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.modal tbody td {
+  padding: 10px 14px;
+  border-bottom: 1px solid #e8ecf0;
+}
+.modal tbody tr:nth-child(even) td { background: #f8f9fa; }
+.modal tbody tr:last-child td { border-bottom: none; }
+.modal .empty-result {
+  text-align: center;
+  color: #8899a6;
+  padding: 32px 16px;
+  font-size: 0.95rem;
+}
+.modal .confirm-msg {
+  text-align: center;
+  padding: 16px 8px;
+  font-size: 1rem;
+  line-height: 1.8;
+  color: #1a1a2e;
+}
+.modal .confirm-msg .hint {
+  font-size: 0.82rem;
+  color: #8899a6;
+  margin-top: 8px;
+}
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+.modal-actions button {
+  padding: 9px 24px;
+  border-radius: 6px;
+  border: 1px solid #d0d0d0;
+  background: #fff;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.88rem;
+  transition: all 0.15s;
+}
+.modal-actions .btn-primary {
+  background: #2d5a87;
+  color: #fff;
+  border-color: #2d5a87;
+}
+.modal-actions .btn-primary:hover { background: #1a3a5c; }
+.modal-actions .btn-cancel:hover { background: #f0f0f0; }
+.modal .close-x {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  border: none;
+  background: none;
+  font-size: 1.3rem;
+  cursor: pointer;
+  color: #aaa;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+.modal .close-x:hover { color: #333; background: #f0f0f0; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .main { flex-direction: column; height: auto; }
+  .student-col, .teacher-col, .class-col { flex: none; min-width: 0; border-right: none; border-bottom: 1px solid #e0e0e0; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>教師 / 學生 / 班級 配對系統</h1>
+</div>
+
+<div class="toolbar">
+  <button class="btn-test" id="btnLoadTest" title="載入測試資料">📥 載入測試資料</button>
+  <button class="btn-danger" id="btnClearAll" title="清除所有資料">🗑 清除全部</button>
+  <span class="spacer"></span>
+  <button id="btnStudentData" title="切換至學生資料頁面">🧑 學生資料</button>
+  <button class="btn-counseling" id="btnCounseling">📋 認輔完成</button>
+  <button class="btn-placement" id="btnPlacement">✅ 安置完成</button>
+</div>
+
+<div class="main">
+  <!-- Student Column -->
+  <div class="column student-col" id="studentCol">
+    <div class="col-header">
+      <span class="col-title">🧑 學生</span>
+      <span class="col-count" id="studentCount"></span>
+      <input type="text" id="inputStudent" placeholder="輸入學生姓名(可 , 或 ，分隔多筆)" maxlength="200">
+      <button class="btn-add" id="btnAddStudent">+新增</button>
+    </div>
+    <div class="scroll-area" id="studentList"></div>
+  </div>
+
+  <!-- Teacher Column -->
+  <div class="column teacher-col" id="teacherCol">
+    <div class="col-header">
+      <span class="col-title">👨‍🏫 教師</span>
+      <span class="col-count" id="teacherCount"></span>
+      <input type="text" id="inputTeacher" placeholder="輸入教師姓名(可 , 或 ，分隔多筆)" maxlength="200">
+      <button class="btn-add" id="btnAddTeacher">+新增</button>
+    </div>
+    <div class="scroll-area" id="teacherList"></div>
+  </div>
+
+  <!-- Class Column -->
+  <div class="column class-col" id="classCol">
+    <div class="col-header">
+      <span class="col-title">🏫 班級</span>
+      <span class="col-count" id="classCount"></span>
+      <input type="text" id="inputClass" placeholder="輸入班級名稱(可 , 或 ，分隔多筆)" maxlength="200">
+      <button class="btn-add" id="btnAddClass">+新增</button>
+    </div>
+    <div class="scroll-area" id="classList"></div>
+  </div>
+</div>
+
+<!-- Confirmation Modal (hidden) -->
+<div class="modal-overlay" id="confirmModalOverlay" style="display:none;">
+  <div class="modal">
+    <h2>重複配對確認</h2>
+    <div class="confirm-msg" id="confirmMsg"></div>
+    <div class="modal-actions">
+      <button class="btn-primary" id="btnConfirmYes">是，允許重複配對</button>
+      <button class="btn-cancel" id="btnConfirmNo">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- Counseling Result Modal (hidden) -->
+<div class="modal-overlay" id="counselingModalOverlay" style="display:none;">
+  <div class="modal" style="min-width:420px;">
+    <h2>認輔結果</h2>
+    <div id="counselingContent"></div>
+    <div class="modal-actions">
+      <button class="btn-primary" id="btnCounselingClose">關閉</button>
+    </div>
+  </div>
+</div>
+
+<!-- Result Modal (hidden) -->
+<div class="modal-overlay" id="resultModalOverlay" style="display:none;">
+  <div class="modal" style="min-width:420px;">
+    <h2>安置結果</h2>
+    <div id="resultContent"></div>
+    <div class="modal-actions">
+      <button class="btn-primary" id="btnResultClose">關閉</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
+import { getDatabase, ref, push, set, onValue, remove, update } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBnIkk08DpjkkQDeSOusaM8GWqAqmDqqGA",
+  authDomain: "tscpsystem.firebaseapp.com",
+  databaseURL: "https://tscpsystem-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "tscpsystem",
+  storageBucket: "tscpsystem.firebasestorage.app",
+  messagingSenderId: "246550546781",
+  appId: "1:246550546781:web:ab26560a436dec92fa40b4",
+  measurementId: "G-7FB4X14XT4"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+// ── 權限檢查：僅 admin 角色可使用安置系統 ──
+const placementRole = sessionStorage.getItem('placement_role');
+if (placementRole !== 'admin') {
+  alert('您的帳號無權使用安置系統。');
+  window.location.href = 'index.html';
+  throw new Error('Unauthorized access');
+}
+
+const studentsRef = ref(db, 'pairing/students');
+const teachersRef = ref(db, 'pairing/teachers');
+const classesRef = ref(db, 'pairing/classes');
+
+let students = {};
+let teachers = {};
+let classes = {};
+let currentDrag = null;
+let confirmResolve = null;
+
+onValue(studentsRef, snapshot => {
+  students = snapshot.val() || {};
+  render();
+});
+onValue(teachersRef, snapshot => {
+  teachers = snapshot.val() || {};
+  render();
+});
+onValue(classesRef, snapshot => {
+  classes = snapshot.val() || {};
+  render();
+});
+
+// ========== ADD ==========
+function addStudentsBulk(rawText) {
+  const names = rawText.split(/[,，]/).map(n => n.trim()).filter(n => n);
+  if (names.length === 0) return;
+  const updates = {};
+  names.forEach(name => {
+    const newRef = push(studentsRef);
+    updates[newRef.key] = { name, teacher: null, class: null };
+  });
+  update(ref(db, 'pairing/students'), updates);
+}
+
+function addTeachersBulk(rawText) {
+  const names = rawText.split(/[,，]/).map(n => n.trim()).filter(n => n);
+  if (names.length === 0) return;
+  const updates = {};
+  names.forEach(name => {
+    const newRef = push(teachersRef);
+    updates[newRef.key] = { name };
+  });
+  update(ref(db, 'pairing/teachers'), updates);
+}
+
+function addClassesBulk(rawText) {
+  const names = rawText.split(/[,，]/).map(n => n.trim()).filter(n => n);
+  if (names.length === 0) return;
+  const updates = {};
+  names.forEach(name => {
+    const newRef = push(classesRef);
+    updates[newRef.key] = { name };
+  });
+  update(ref(db, 'pairing/classes'), updates);
+}
+
+function addStudent() {
+  const input = document.getElementById('inputStudent');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  addStudentsBulk(text);
+}
+
+function addTeacher() {
+  const input = document.getElementById('inputTeacher');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  addTeachersBulk(text);
+}
+
+function addClass() {
+  const input = document.getElementById('inputClass');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  addClassesBulk(text);
+}
+
+document.getElementById('btnAddStudent').addEventListener('click', addStudent);
+document.getElementById('btnAddTeacher').addEventListener('click', addTeacher);
+document.getElementById('btnAddClass').addEventListener('click', addClass);
+document.getElementById('inputStudent').addEventListener('keydown', e => { if (e.key === 'Enter') addStudent(); });
+document.getElementById('inputTeacher').addEventListener('keydown', e => { if (e.key === 'Enter') addTeacher(); });
+document.getElementById('inputClass').addEventListener('keydown', e => { if (e.key === 'Enter') addClass(); });
+
+// ========== DELETE ==========
+function deleteStudent(key) {
+  remove(ref(db, `pairing/students/${key}`));
+}
+
+function deleteTeacher(key) {
+  remove(ref(db, `pairing/teachers/${key}`));
+  for (const [sk, s] of Object.entries(students)) {
+    if (s.teacher === key) update(ref(db, `pairing/students/${sk}`), { teacher: null });
+  }
+}
+
+function deleteClass(key) {
+  remove(ref(db, `pairing/classes/${key}`));
+  for (const [sk, s] of Object.entries(students)) {
+    if (s.class === key) update(ref(db, `pairing/students/${sk}`), { class: null });
+  }
+}
+
+// ========== ASSIGN / UNASSIGN ==========
+function unassign(studentKey, slot) {
+  update(ref(db, `pairing/students/${studentKey}`), { [slot]: null });
+}
+
+function showConfirm(teacherName, existingStudentName, newStudentName) {
+  return new Promise(resolve => {
+    document.getElementById('confirmMsg').innerHTML =
+      `<strong>「${teacherName}」</strong> 已經配對給 <strong>「${existingStudentName}」</strong>，<br>是否也要配對給 <strong>「${newStudentName}」</strong>？<br><span class="hint">點擊「是」允許重複配對；點擊「取消」不做任何變動</span>`;
+    document.getElementById('confirmModalOverlay').style.display = 'flex';
+    confirmResolve = resolve;
+  });
+}
+
+function assign(studentKey, slot, itemKey) {
+  const student = students[studentKey];
+  if (!student) return;
+
+  let duplicateStudentKey = null;
+  for (const [sk, s] of Object.entries(students)) {
+    if (sk !== studentKey && s[slot] === itemKey) {
+      duplicateStudentKey = sk;
+      break;
+    }
+  }
+
+  if (duplicateStudentKey) {
+    const itemName = slot === 'teacher'
+      ? (teachers[itemKey]?.name || '(已刪除)')
+      : (classes[itemKey]?.name || '(已刪除)');
+    const existingName = students[duplicateStudentKey]?.name || '(未知)';
+    showConfirm(itemName, existingName, student.name).then(confirmed => {
+      if (confirmed) {
+        update(ref(db, `pairing/students/${studentKey}`), { [slot]: itemKey });
+      }
+    });
+  } else {
+    update(ref(db, `pairing/students/${studentKey}`), { [slot]: itemKey });
+  }
+}
+
+// ========== TEST DATA ==========
+function loadTestData() {
+  const testStudents = [{ name: '大牛', teacher: null, class: null }, { name: '小牛', teacher: null, class: null }];
+  const testTeachers = [{ name: '牧牛' }, { name: '牧馬' }];
+  const testClasses = [{ name: '101' }, { name: '102' }];
+
+  set(studentsRef, null).then(() => set(teachersRef, null)).then(() => set(classesRef, null)).then(() => {
+    const p1 = Promise.all(testStudents.map(s => push(studentsRef, s)));
+    const p2 = Promise.all(testTeachers.map(t => push(teachersRef, t)));
+    const p3 = Promise.all(testClasses.map(c => push(classesRef, c)));
+    return Promise.all([p1, p2, p3]);
+  });
+}
+
+function clearAll() {
+  set(ref(db, 'pairing'), null);
+}
+
+document.getElementById('btnLoadTest').addEventListener('click', loadTestData);
+document.getElementById('btnClearAll').addEventListener('click', () => { if (confirm('確定要清除所有資料嗎？此動作無法復原。')) clearAll(); });
+document.getElementById('btnStudentData').addEventListener('click', () => { window.location.href = 'index.html'; });
+
+// ========== CONFIRM MODAL ==========
+document.getElementById('btnConfirmYes').addEventListener('click', () => {
+  document.getElementById('confirmModalOverlay').style.display = 'none';
+  if (confirmResolve) { confirmResolve(true); confirmResolve = null; }
+});
+document.getElementById('btnConfirmNo').addEventListener('click', () => {
+  document.getElementById('confirmModalOverlay').style.display = 'none';
+  if (confirmResolve) { confirmResolve(false); confirmResolve = null; }
+});
+
+// ========== PLACEMENT RESULT ==========
+function showPlacementResult() {
+  const results = [];
+  const unassigned = [];
+  for (const [sk, s] of Object.entries(students)) {
+    if (s.teacher && s.class) {
+      const teacherName = teachers[s.teacher]?.name || '(已刪除)';
+      const className = classes[s.class]?.name || '(已刪除)';
+      results.push({ className, teacherName, studentName: s.name });
+    } else {
+      unassigned.push(s.name);
+    }
+  }
+
+  results.sort((a, b) => {
+    if (a.className !== b.className) return a.className.localeCompare(b.className, 'zh-Hant');
+    if (a.teacherName !== b.teacherName) return a.teacherName.localeCompare(b.teacherName, 'zh-Hant');
+    return a.studentName.localeCompare(b.studentName, 'zh-Hant');
+  });
+
+  const container = document.getElementById('resultContent');
+  if (results.length === 0) {
+    container.innerHTML = '<div class="empty-result">尚無完整配對的資料<br><small>（學生需同時配對教師與班級才會顯示）</small></div>';
+  } else {
+    let html = '<table><thead><tr><th>班級</th><th>導師</th><th>學生</th></tr></thead><tbody>';
+    results.forEach(r => {
+      html += `<tr><td>${escapeHtml(r.className)}</td><td>${escapeHtml(r.teacherName)}</td><td>${escapeHtml(r.studentName)}</td></tr>`;
+    });
+    html += '</tbody></table>';
+    html += `<div style="text-align:center;color:#8899a6;font-size:0.8rem;">共 ${results.length} 筆完整配對</div>`;
+    if (unassigned.length > 0) {
+      html += `<div style="text-align:center;margin-top:8px;font-size:0.85rem;color:#1a1a2e;">尚有 <span style="color:#c0392b;font-weight:700;">${unassigned.length}</span> 位 學生未完成安置</div>`;
+    }
+    container.innerHTML = html;
+  }
+  document.getElementById('resultModalOverlay').style.display = 'flex';
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+document.getElementById('btnPlacement').addEventListener('click', showPlacementResult);
+document.getElementById('btnResultClose').addEventListener('click', () => {
+  document.getElementById('resultModalOverlay').style.display = 'none';
+});
+
+// ========== COUNSELING RESULT ==========
+function showCounselingResult() {
+  const pairs = [];
+  const unmatched = [];
+  for (const [sk, s] of Object.entries(students)) {
+    if (s.teacher) {
+      const teacherName = teachers[s.teacher]?.name || '(已刪除)';
+      pairs.push({ teacherName, studentName: s.name });
+    } else {
+      unmatched.push(s.name);
+    }
+  }
+
+  pairs.sort((a, b) => {
+    if (a.teacherName !== b.teacherName) return a.teacherName.localeCompare(b.teacherName, 'zh-Hant');
+    return a.studentName.localeCompare(b.studentName, 'zh-Hant');
+  });
+
+  const container = document.getElementById('counselingContent');
+  if (pairs.length === 0) {
+    container.innerHTML = '<div class="empty-result">尚無任何認輔配對資料<br><small>（學生需配對教師才會顯示）</small></div>';
+  } else {
+    let html = '<table><thead><tr><th>導師</th><th>學生</th></tr></thead><tbody>';
+    pairs.forEach(r => {
+      html += `<tr><td>${escapeHtml(r.teacherName)}</td><td>${escapeHtml(r.studentName)}</td></tr>`;
+    });
+    html += '</tbody></table>';
+    html += `<div style="text-align:center;color:#8899a6;font-size:0.8rem;">共 ${pairs.length} 筆認輔配對</div>`;
+    container.innerHTML = html;
+  }
+
+  if (unmatched.length > 0) {
+    const studentsTotal = Object.keys(students).length;
+    container.innerHTML += `<div style="text-align:center;margin-top:10px;font-size:0.85rem;color:#1a1a2e;">尚有 <span style="color:#c0392b;font-weight:700;">${unmatched.length}</span> 位 學生未完成認輔</div>`;
+  }
+  document.getElementById('counselingModalOverlay').style.display = 'flex';
+}
+
+document.getElementById('btnCounseling').addEventListener('click', showCounselingResult);
+document.getElementById('btnCounselingClose').addEventListener('click', () => {
+  document.getElementById('counselingModalOverlay').style.display = 'none';
+});
+
+// ========== RENDER ==========
+function render() {
+  renderTeachers();
+  renderClasses();
+  renderStudents();
+}
+
+function renderStudents() {
+  const container = document.getElementById('studentList');
+  const entries = Object.entries(students);
+  document.getElementById('studentCount').textContent = entries.length ? `(${entries.length})` : '';
+
+  if (entries.length === 0) {
+    container.innerHTML = '<div class="empty-state">暫無學生<br>請在上方輸入姓名後點擊「+新增」<br>或點擊「載入測試資料」</div>';
+    return;
+  }
+
+  let html = '';
+  for (const [key, s] of entries) {
+    const teacherName = s.teacher ? (teachers[s.teacher]?.name || '(已刪除)') : null;
+    const className = s.class ? (classes[s.class]?.name || '(已刪除)') : null;
+
+    html += `<div class="student-card">
+      <div class="student-header">
+        <span class="student-name">${escapeHtml(s.name)}</span>
+        <div class="student-slots">
+          <div class="drop-zone${teacherName ? ' filled' : ''}"
+               data-student-key="${key}"
+               data-slot="teacher"
+               data-action="drop-zone">
+            ${teacherName
+              ? `<span class="slot-content">${escapeHtml(teacherName)}</span><button class="btn-unassign" data-action="unassign" data-student-key="${key}" data-slot="teacher">✕</button>`
+              : '<span class="slot-label">拖放教師至此</span>'}
+          </div>
+          <div class="drop-zone${className ? ' filled' : ''}"
+               data-student-key="${key}"
+               data-slot="class"
+               data-action="drop-zone">
+            ${className
+              ? `<span class="slot-content">${escapeHtml(className)}</span><button class="btn-unassign" data-action="unassign" data-student-key="${key}" data-slot="class">✕</button>`
+              : '<span class="slot-label">拖放班級至此</span>'}
+          </div>
+        </div>
+        <button class="btn-del-student" data-action="delete-student" data-key="${key}" title="刪除學生">✕</button>
+      </div>
+    </div>`;
+  }
+  container.innerHTML = html;
+
+  attachStudentEvents();
+}
+
+function renderTeachers() {
+  const container = document.getElementById('teacherList');
+  const entries = Object.entries(teachers);
+  document.getElementById('teacherCount').textContent = entries.length ? `(${entries.length})` : '';
+
+  if (entries.length === 0) {
+    container.innerHTML = '<div class="empty-state">暫無教師<br>拖放教師至學生卡片</div>';
+    return;
+  }
+
+  let html = '';
+  for (const [key, t] of entries) {
+    html += `<div class="drag-item" draggable="true"
+             data-type="teacher" data-key="${key}" data-name="${escapeHtml(t.name)}"
+             data-action="drag-item">
+      <span class="drag-handle">⠿</span>
+      <span class="drag-name">${escapeHtml(t.name)}</span>
+      <button class="btn-del-item" data-action="delete-teacher" data-key="${key}" title="刪除教師">✕</button>
+    </div>`;
+  }
+  container.innerHTML = html;
+
+  attachTeacherEvents();
+}
+
+function renderClasses() {
+  const container = document.getElementById('classList');
+  const entries = Object.entries(classes);
+  document.getElementById('classCount').textContent = entries.length ? `(${entries.length})` : '';
+
+  if (entries.length === 0) {
+    container.innerHTML = '<div class="empty-state">暫無班級<br>拖放班級至學生卡片</div>';
+    return;
+  }
+
+  let html = '';
+  for (const [key, c] of entries) {
+    html += `<div class="drag-item" draggable="true"
+             data-type="class" data-key="${key}" data-name="${escapeHtml(c.name)}"
+             data-action="drag-item">
+      <span class="drag-handle">⠿</span>
+      <span class="drag-name">${escapeHtml(c.name)}</span>
+      <button class="btn-del-item" data-action="delete-class" data-key="${key}" title="刪除班級">✕</button>
+    </div>`;
+  }
+  container.innerHTML = html;
+
+  attachClassEvents();
+}
+
+// ========== EVENT ATTACHMENT (delegated via clicks on rendered content) ==========
+function attachStudentEvents() {
+  const container = document.getElementById('studentList');
+
+  container.querySelectorAll('[data-action="delete-student"]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const key = btn.dataset.key;
+      if (confirm(`確定要刪除學生「${students[key]?.name || key}」嗎？`)) {
+        deleteStudent(key);
+      }
+    });
+  });
+
+  container.querySelectorAll('[data-action="unassign"]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      unassign(btn.dataset.studentKey, btn.dataset.slot);
+    });
+  });
+
+  container.querySelectorAll('[data-action="drop-zone"]').forEach(zone => {
+    zone.addEventListener('dragover', e => {
+      e.preventDefault();
+      if (!currentDrag || currentDrag.type !== zone.dataset.slot) return;
+      zone.classList.add('drag-over');
+    });
+    zone.addEventListener('dragleave', () => {
+      zone.classList.remove('drag-over');
+    });
+    zone.addEventListener('drop', e => {
+      e.preventDefault();
+      zone.classList.remove('drag-over');
+      if (!currentDrag) return;
+      if (currentDrag.type !== zone.dataset.slot) return;
+      assign(zone.dataset.studentKey, zone.dataset.slot, currentDrag.key);
+    });
+  });
+}
+
+function attachTeacherEvents() {
+  const container = document.getElementById('teacherList');
+
+  container.querySelectorAll('[data-action="drag-item"]').forEach(item => {
+    item.addEventListener('dragstart', e => {
+      currentDrag = {
+        type: item.dataset.type,
+        key: item.dataset.key,
+        name: item.dataset.name
+      };
+      item.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', item.dataset.name);
+    });
+    item.addEventListener('dragend', () => {
+      item.classList.remove('dragging');
+      currentDrag = null;
+    });
+  });
+
+  container.querySelectorAll('[data-action="delete-teacher"]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const key = btn.dataset.key;
+      if (confirm(`確定要刪除教師「${teachers[key]?.name || key}」嗎？\n（相關學生配對將一併清除）`)) {
+        deleteTeacher(key);
+      }
+    });
+  });
+}
+
+function attachClassEvents() {
+  const container = document.getElementById('classList');
+
+  container.querySelectorAll('[data-action="drag-item"]').forEach(item => {
+    item.addEventListener('dragstart', e => {
+      currentDrag = {
+        type: item.dataset.type,
+        key: item.dataset.key,
+        name: item.dataset.name
+      };
+      item.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', item.dataset.name);
+    });
+    item.addEventListener('dragend', () => {
+      item.classList.remove('dragging');
+      currentDrag = null;
+    });
+  });
+
+  container.querySelectorAll('[data-action="delete-class"]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const key = btn.dataset.key;
+      if (confirm(`確定要刪除班級「${classes[key]?.name || key}」嗎？\n（相關學生配對將一併清除）`)) {
+        deleteClass(key);
+      }
+    });
+  });
+}
+
+</script>
+
+</body>
+</html>
