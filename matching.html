@@ -65,6 +65,15 @@ body {
   padding: 9px 22px;
 }
 .toolbar .btn-counseling:hover { background: #236b43; border-color: #236b43; }
+.toolbar .btn-class-done {
+  background: #4682b4;
+  color: #fff;
+  border-color: #4682b4;
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 9px 22px;
+}
+.toolbar .btn-class-done:hover { background: #36648b; border-color: #36648b; }
 .toolbar .btn-placement {
   background: #e8a838;
   color: #fff;
@@ -265,6 +274,39 @@ body {
 }
 .drop-zone.filled:hover .btn-unassign { display: flex; }
 
+/* Touch device: always show action buttons since there's no hover */
+@media (hover: none) and (pointer: coarse) {
+  .drop-zone.filled .btn-unassign { display: flex; }
+  .btn-del-student { opacity: 1 !important; }
+  .drag-item .btn-del-item { opacity: 1 !important; }
+}
+
+/* Touch drag ghost */
+.touch-drag-ghost {
+  position: fixed;
+  pointer-events: none;
+  z-index: 10000;
+  background: #e8f0fe;
+  border: 2px solid #2d5a87;
+  border-radius: 10px;
+  padding: 8px 16px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #1a3a5c;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.22);
+  white-space: nowrap;
+  transform: translate(-50%, -50%);
+  opacity: 0.92;
+  font-family: inherit;
+}
+
+/* Highlight draggable items being long-pressed */
+.drag-item.touch-active {
+  border-color: #2d5a87;
+  background: #e8f0fe;
+  box-shadow: 0 2px 10px rgba(45, 90, 135, 0.25);
+}
+
 /* Teacher & Class Draggable Items */
 .drag-item {
   background: #fff;
@@ -446,6 +488,7 @@ body {
   <span class="spacer"></span>
   <button id="btnStudentData" title="切換至學生資料頁面">🧑 學生資料</button>
   <button class="btn-counseling" id="btnCounseling">📋 認輔完成</button>
+  <button class="btn-class-done" id="btnClassResult">🏫 班級完成</button>
   <button class="btn-placement" id="btnPlacement">✅ 安置完成</button>
 </div>
 
@@ -503,6 +546,17 @@ body {
     <div id="counselingContent"></div>
     <div class="modal-actions">
       <button class="btn-primary" id="btnCounselingClose">關閉</button>
+    </div>
+  </div>
+</div>
+
+<!-- Class Result Modal (hidden) -->
+<div class="modal-overlay" id="classResultModalOverlay" style="display:none;">
+  <div class="modal" style="min-width:420px;">
+    <h2>班級配對結果</h2>
+    <div id="classResultContent"></div>
+    <div class="modal-actions">
+      <button class="btn-primary" id="btnClassResultClose">關閉</button>
     </div>
   </div>
 </div>
@@ -816,6 +870,48 @@ document.getElementById('btnCounselingClose').addEventListener('click', () => {
   document.getElementById('counselingModalOverlay').style.display = 'none';
 });
 
+// ========== CLASS RESULT ==========
+function showClassResult() {
+  const pairs = [];
+  const unmatched = [];
+  for (const [sk, s] of Object.entries(students)) {
+    if (s.class) {
+      const className = classes[s.class]?.name || '(已刪除)';
+      pairs.push({ className, studentName: s.name });
+    } else {
+      unmatched.push(s.name);
+    }
+  }
+
+  pairs.sort((a, b) => {
+    if (a.className !== b.className) return a.className.localeCompare(b.className, 'zh-Hant');
+    return a.studentName.localeCompare(b.studentName, 'zh-Hant');
+  });
+
+  const container = document.getElementById('classResultContent');
+  if (pairs.length === 0) {
+    container.innerHTML = '<div class="empty-result">尚無任何班級配對資料<br><small>（學生需配對班級才會顯示）</small></div>';
+  } else {
+    let html = '<table><thead><tr><th>班級</th><th>學生</th></tr></thead><tbody>';
+    pairs.forEach(r => {
+      html += `<tr><td>${escapeHtml(r.className)}</td><td>${escapeHtml(r.studentName)}</td></tr>`;
+    });
+    html += '</tbody></table>';
+    html += `<div style="text-align:center;color:#8899a6;font-size:0.8rem;">共 ${pairs.length} 筆班級配對</div>`;
+    container.innerHTML = html;
+  }
+
+  if (unmatched.length > 0) {
+    container.innerHTML += `<div style="text-align:center;margin-top:10px;font-size:0.85rem;color:#1a1a2e;">尚有 <span style="color:#c0392b;font-weight:700;">${unmatched.length}</span> 位 學生未完成分班</div>`;
+  }
+  document.getElementById('classResultModalOverlay').style.display = 'flex';
+}
+
+document.getElementById('btnClassResult').addEventListener('click', showClassResult);
+document.getElementById('btnClassResultClose').addEventListener('click', () => {
+  document.getElementById('classResultModalOverlay').style.display = 'none';
+});
+
 // ========== RENDER ==========
 function render() {
   renderTeachers();
@@ -1019,6 +1115,149 @@ function attachClassEvents() {
     });
   });
 }
+
+// ========== TOUCH DRAG & DROP SUPPORT ==========
+let touchDragData = null;
+let touchGhost = null;
+let touchLongPressTimer = null;
+const LONG_PRESS_MS = 300;
+
+function createTouchGhost(name, x, y) {
+  const ghost = document.createElement('div');
+  ghost.className = 'touch-drag-ghost';
+  ghost.textContent = name;
+  ghost.style.left = x + 'px';
+  ghost.style.top = y + 'px';
+  document.body.appendChild(ghost);
+  return ghost;
+}
+
+function removeTouchGhost() {
+  if (touchGhost) {
+    touchGhost.remove();
+    touchGhost = null;
+  }
+}
+
+function clearAllDragOver() {
+  document.querySelectorAll('.drop-zone.drag-over').forEach(z => z.classList.remove('drag-over'));
+}
+
+function getDropZoneUnderPoint(x, y) {
+  // Temporarily hide ghost so elementFromPoint can see through it
+  if (touchGhost) touchGhost.style.display = 'none';
+  const el = document.elementFromPoint(x, y);
+  if (touchGhost) touchGhost.style.display = '';
+  if (!el) return null;
+  // The element itself might be a drop-zone, or a child of one
+  return el.closest('[data-action="drop-zone"]');
+}
+
+function attachTouchDragEvents(container) {
+  container.querySelectorAll('[data-action="drag-item"]').forEach(item => {
+    item.addEventListener('touchstart', e => {
+      // Don't interfere with delete buttons
+      if (e.target.closest('[data-action^="delete-"]')) return;
+
+      const touch = e.touches[0];
+      const startX = touch.clientX;
+      const startY = touch.clientY;
+
+      // Start a long-press timer
+      touchLongPressTimer = setTimeout(() => {
+        // Initiate drag
+        touchDragData = {
+          type: item.dataset.type,
+          key: item.dataset.key,
+          name: item.dataset.name
+        };
+        item.classList.add('dragging', 'touch-active');
+        touchGhost = createTouchGhost(item.dataset.name, startX, startY);
+
+        // Vibrate for haptic feedback if supported
+        if (navigator.vibrate) navigator.vibrate(30);
+      }, LONG_PRESS_MS);
+    }, { passive: true });
+
+    item.addEventListener('touchmove', e => {
+      // If long press hasn't fired yet, cancel it (user is scrolling)
+      if (!touchDragData && touchLongPressTimer) {
+        clearTimeout(touchLongPressTimer);
+        touchLongPressTimer = null;
+        return;
+      }
+
+      if (!touchDragData) return;
+
+      // Prevent scrolling while dragging
+      e.preventDefault();
+
+      const touch = e.touches[0];
+      if (touchGhost) {
+        touchGhost.style.left = touch.clientX + 'px';
+        touchGhost.style.top = touch.clientY + 'px';
+      }
+
+      // Highlight drop zone under finger
+      clearAllDragOver();
+      const zone = getDropZoneUnderPoint(touch.clientX, touch.clientY);
+      if (zone && touchDragData.type === zone.dataset.slot) {
+        zone.classList.add('drag-over');
+      }
+    }, { passive: false });
+
+    item.addEventListener('touchend', e => {
+      // Clear long-press timer
+      if (touchLongPressTimer) {
+        clearTimeout(touchLongPressTimer);
+        touchLongPressTimer = null;
+      }
+
+      if (!touchDragData) return;
+
+      // Find drop target
+      const touch = e.changedTouches[0];
+      const zone = getDropZoneUnderPoint(touch.clientX, touch.clientY);
+
+      if (zone && touchDragData.type === zone.dataset.slot) {
+        assign(zone.dataset.studentKey, zone.dataset.slot, touchDragData.key);
+      }
+
+      // Cleanup
+      clearAllDragOver();
+      item.classList.remove('dragging', 'touch-active');
+      removeTouchGhost();
+      touchDragData = null;
+    });
+
+    item.addEventListener('touchcancel', () => {
+      if (touchLongPressTimer) {
+        clearTimeout(touchLongPressTimer);
+        touchLongPressTimer = null;
+      }
+      clearAllDragOver();
+      item.classList.remove('dragging', 'touch-active');
+      removeTouchGhost();
+      touchDragData = null;
+    });
+  });
+}
+
+// Override the original attach functions to also bind touch events
+const _origAttachTeacher = attachTeacherEvents;
+attachTeacherEvents = function() {
+  _origAttachTeacher();
+  attachTouchDragEvents(document.getElementById('teacherList'));
+};
+
+const _origAttachClass = attachClassEvents;
+attachClassEvents = function() {
+  _origAttachClass();
+  attachTouchDragEvents(document.getElementById('classList'));
+};
+
+// Re-render to apply touch events on initial load
+render();
 
 </script>
 
