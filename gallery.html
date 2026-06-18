@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>PIC 雲端藝廊 & 觸控檢視系統</title>
+  
+  <!-- Google Fonts Outfit & Noto Sans TC -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+  
+  <style>
+    /* ── 設計系統與變數 ── */
+    :root {
+      --bg-gradient: radial-gradient(circle at 50% 50%, #111625 0%, #070913 100%);
+      --card-bg: rgba(255, 255, 255, 0.03);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --card-hover-border: rgba(99, 102, 241, 0.4);
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --accent-primary: #6366f1; /* Indigo */
+      --accent-secondary: #06b6d4; /* Cyan */
+      --accent-glow: rgba(99, 102, 241, 0.25);
+      --font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    body {
+      background: var(--bg-gradient);
+      color: var(--text-main);
+      font-family: var(--font-family);
+      min-height: 100vh;
+      overflow-x: hidden;
+      padding: 40px 20px;
+    }
+
+    /* ── Header 區塊 ── */
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+      animation: fadeInDown 0.8s ease;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #fff 30%, var(--accent-secondary) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+    }
+
+    header p {
+      color: var(--text-muted);
+      font-size: 1.05rem;
+      font-weight: 300;
+    }
+
+    /* ── 控制列 (上傳與狀態) ── */
+    .controls {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 40px;
+      animation: fadeIn 1s ease;
+    }
+
+    /* 隱藏原生 File Input */
+    .directory-picker-input {
+      display: none;
+    }
+
+    /* 訂製玻璃質感按鈕 */
+    .btn-scanner {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 28px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      color: #fff;
+      font-family: inherit;
+      font-size: 0.95rem;
+      font-weight: 600;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      backdrop-filter: blur(10px);
+    }
+
+    .btn-scanner:hover {
+      background: var(--accent-primary);
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 20px var(--accent-glow);
+      transform: translateY(-2px);
+    }
+
+    .btn-scanner:active {
+      transform: translateY(0);
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      background: rgba(99, 102, 241, 0.1);
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      color: var(--accent-secondary);
+      font-size: 0.82rem;
+      font-weight: 600;
+      border-radius: 20px;
+    }
+
+    .status-badge .dot {
+      width: 8px;
+      height: 8px;
+      background-color: var(--accent-secondary);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--accent-secondary);
+      animation: pulse 1.5s infinite;
+    }
+
+    /* ── 圖片展示網格 ── */
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 24px;
+      max-width: 1200px;
+      margin: 0 auto;
+      animation: fadeInUp 0.8s ease;
+    }
+
+    .gallery-card {
+      position: relative;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      overflow: hidden;
+      aspect-ratio: 4/3;
+      cursor: pointer;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      backdrop-filter: blur(5px);
+    }
+
+    .gallery-card:hover {
+      border-color: var(--card-hover-border);
+      transform: translateY(-6px) scale(1.02);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3), 0 0 15px rgba(99, 102, 241, 0.15);
+    }
+
+    .gallery-card img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.6s ease;
+    }
+
+    .gallery-card:hover img {
+      transform: scale(1.05);
+    }
+
+    /* 卡片底邊遮罩文字 */
+    .card-overlay {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(to top, rgba(7, 9, 19, 0.9) 0%, rgba(7, 9, 19, 0) 100%);
+      transform: translateY(100%);
+      transition: transform 0.3s ease;
+    }
+
+    .gallery-card:hover .card-overlay {
+      transform: translateY(0);
+    }
+
+    .card-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* 空狀態顯示 */
+    .empty-state {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 80px 20px;
+      background: rgba(255,255,255,0.01);
+      border: 2px dashed rgba(255,255,255,0.05);
+      border-radius: 20px;
+      color: var(--text-muted);
+    }
+
+    .empty-state h3 {
+      font-size: 1.25rem;
+      color: #fff;
+      margin-bottom: 12px;
+    }
+
+    /* ── Lightbox 全螢幕檢視器 ── */
+    .lightbox {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(6, 8, 15, 0.98);
+      backdrop-filter: blur(15px);
+      z-index: 99999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      overflow: hidden;
+      touch-action: none; /* 禁用瀏覽器預設觸控手勢，由程式接管 */
+    }
+
+    .lightbox.show {
+      display: flex;
+      opacity: 1;
+    }
+
+    /* 觸控手勢視窗容器 */
+    .lightbox-viewer {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .lightbox-img {
+      max-width: 90%;
+      max-height: 90%;
+      object-fit: contain;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+      border-radius: 4px;
+      transform-origin: center center;
+      will-change: transform;
+      user-select: none;
+      -webkit-user-drag: none;
+      transition: transform 0.05s ease-out; /* 極微小過渡以利跟手感 */
+    }
+
+    /* ── 控制按鈕 (燈箱) ── */
+    .lightbox-btn {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #fff;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 100;
+      backdrop-filter: blur(10px);
+      transition: all 0.2s;
+    }
+
+    .lightbox-btn:hover {
+      background: var(--accent-primary);
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 15px var(--accent-glow);
+    }
+
+    .btn-close {
+      top: 24px;
+      right: 24px;
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    .btn-prev {
+      left: 24px;
+      font-size: 1.25rem;
+    }
+
+    .btn-next {
+      right: 24px;
+      font-size: 1.25rem;
+    }
+
+    /* 頁碼提示 */
+    .lightbox-counter {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.6);
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      z-index: 100;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    /* 手勢提示泡泡 */
+    .gesture-hint {
+      position: absolute;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.1);
+      padding: 6px 14px;
+      border-radius: 30px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      pointer-events: none;
+      z-index: 100;
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    /* ── 動畫效果 ── */
+    @keyframes fadeInDown {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes pulse {
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(6, 182, 212, 0.5); }
+      70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(6, 182, 212, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(6, 182, 212, 0); }
+    }
+
+    /* 行動裝置優化 */
+    @media (max-width: 768px) {
+      body { padding: 24px 12px; }
+      h1 { font-size: 2rem; }
+      .lightbox-btn { width: 44px; height: 44px; }
+      .btn-prev { left: 12px; }
+      .btn-next { right: 12px; }
+      .btn-close { top: 12px; right: 12px; }
+      .gesture-hint { display: none; } /* 手機端已熟悉觸控，隱藏提示 */
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <h1>PIC 圖片檢視藝廊</h1>
+    <p>支援多點觸控手勢（雙指縮放、拖曳移動、左右滑動切換、雙擊還原）</p>
+  </header>
+
+  <!-- Controls -->
+  <div class="controls">
+    <label class="btn-scanner" id="btnScannerLabel">
+      <input type="file" class="directory-picker-input" id="folderInput" webkitdirectory directory multiple>
+      📂 掃描本機 PIC 目錄
+    </label>
+    <div class="status-badge" id="statusBadge">
+      <span class="dot"></span>
+      <span id="statusText">載入中...</span>
+    </div>
+  </div>
+
+  <!-- Main Grid -->
+  <div class="gallery-grid" id="galleryGrid">
+    <!-- 圖片卡片將由 JS 動態生成 -->
+  </div>
+
+  <!-- Lightbox -->
+  <div class="lightbox" id="lightbox">
+    <button class="lightbox-btn btn-close" id="btnClose" title="關閉檢視">×</button>
+    <button class="lightbox-btn btn-prev" id="btnPrev" title="上一張">‹</button>
+    <button class="lightbox-btn btn-next" id="btnNext" title="下一張">›</button>
+    
+    <div class="gesture-hint">
+      <span> Pinch 雙指縮放</span> • <span> Drag 拖曳移動</span> • <span> Swipe 左右滑動切換</span>
+    </div>
+    
+    <div class="lightbox-counter" id="lightboxCounter">0 / 0</div>
+    
+    <div class="lightbox-viewer" id="lightboxViewer">
+      <img src="" alt="Zoomed view" class="lightbox-img" id="lightboxImg">
+    </div>
+  </div>
+
+  <!-- 載入自動生成的預設圖片清單 (pics-list.js) -->
+  <script src="pics-list.js"></script>
+
+  <script>
+    // ── 圖片狀態管理 ──
+    let imagesList = []; // 儲存目前顯示的所有圖片路徑或 Blob URLs
+    let currentIdx = 0;
+
+    const galleryGrid = document.getElementById('galleryGrid');
+    const statusText = document.getElementById('statusText');
+    const folderInput = document.getElementById('folderInput');
+
+    // ── 初始化與載入 ──
+    window.addEventListener('DOMContentLoaded', () => {
+      // 1. 優先嘗試讀取自動生成的 pics-list.js 名單
+      if (window.PIC_IMAGES && Array.isArray(window.PIC_IMAGES) && window.PIC_IMAGES.length > 0) {
+        imagesList = window.PIC_IMAGES;
+        renderGrid(imagesList);
+        statusText.textContent = `自動讀取：${imagesList.length} 張預設圖片`;
+      } else {
+        renderEmptyState('未找到預設圖片，請點擊上方按鈕選擇「PIC」資料夾以進行掃描。');
+        statusText.textContent = '未載入圖片';
+      }
+    });
+
+    // ── 處理本機資料夾掃描 ──
+    folderInput.addEventListener('change', (e) => {
+      const files = Array.from(e.target.files);
+      const allowedExts = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'];
+      
+      // 篩選出 PIC 目錄下的圖片
+      const picImages = files.filter(file => {
+        // webkitRelativePath 格式通常為 "Folder/Subfolder/file.ext"
+        const pathParts = file.webkitRelativePath.split('/');
+        const isInPicDir = pathParts.some(part => part.toUpperCase() === 'PIC');
+        const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+        
+        return isInPicDir && allowedExts.includes(ext);
+      });
+
+      if (picImages.length === 0) {
+        alert('在選取的資料夾或子目錄中沒有找到任何 PIC 目錄及圖片！');
+        return;
+      }
+
+      // 釋放舊的 Blob URLs 避免記憶體洩漏
+      imagesList.forEach(url => {
+        if (url.startsWith('blob:')) {
+          URL.revokeObjectURL(url);
+        }
+      });
+
+      // 轉換成 Blob URLs
+      imagesList = picImages.map(file => ({
+        url: URL.createObjectURL(file),
+        name: file.name
+      }));
+
+      renderGrid(imagesList);
+      statusText.textContent = `已掃描 PIC：手動載入 ${imagesList.length} 張圖片`;
+    });
+
+    // ── 渲染格狀圖片卡片 ──
+    function renderGrid(list) {
+      galleryGrid.innerHTML = '';
+      if (list.length === 0) {
+        renderEmptyState('選取目錄中無圖片。');
+        return;
+      }
+
+      list.forEach((img, index) => {
+        const url = typeof img === 'object' ? img.url : img;
+        const name = typeof img === 'object' ? img.name : img.split('/').pop();
+
+        const card = document.createElement('div');
+        card.className = 'gallery-card';
+        card.innerHTML = `
+          <img src="${url}" alt="${name}" loading="lazy">
+          <div class="card-overlay">
+            <div class="card-title">${name}</div>
+          </div>
+        `;
+        card.addEventListener('click', () => openLightbox(index));
+        galleryGrid.appendChild(card);
+      });
+    }
+
+    function renderEmptyState(message) {
+      galleryGrid.innerHTML = `
+        <div class="empty-state">
+          <h3>目前無圖片</h3>
+          <p>${message}</p>
+        </div>
+      `;
+    }
+
+
+    // ── LIGHTBOX 檢視器與觸控手勢核心引擎 ──
+    const lightbox = document.getElementById('lightbox');
+    const lightboxImg = document.getElementById('lightboxImg');
+    const lightboxCounter = document.getElementById('lightboxCounter');
+    const btnClose = document.getElementById('btnClose');
+    const btnPrev = document.getElementById('btnPrev');
+    const btnNext = document.getElementById('btnNext');
+
+    // 觸控變數
+    let scale = 1;
+    let baseScale = 1;
+    let translateX = 0;
+    let translateY = 0;
+    let baseTranslateX = 0;
+    let baseTranslateY = 0;
+
+    // 單指滑動 (Swipe) 切換
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let isSwiping = false;
+
+    // 多點觸控 (Pinch/Zoom)
+    const activePointers = new Map();
+    let initialPinchDistance = 0;
+    let isPinching = false;
+    let pinchCenter = { x: 0, y: 0 };
+
+    // 雙擊變數
+    let lastTapTime = 0;
+
+    function openLightbox(index) {
+      currentIdx = index;
+      updateLightboxImage();
+      resetTransform();
+      
+      lightbox.classList.add('show');
+      document.body.style.overflow = 'hidden'; // 鎖定背景滾動
+    }
+
+    function closeLightbox() {
+      lightbox.classList.remove('show');
+      document.body.style.overflow = '';
+      resetTransform();
+    }
+
+    function prevImage() {
+      if (imagesList.length === 0) return;
+      currentIdx = (currentIdx - 1 + imagesList.length) % imagesList.length;
+      updateLightboxImage();
+      resetTransform();
+    }
+
+    function nextImage() {
+      if (imagesList.length === 0) return;
+      currentIdx = (currentIdx + 1) % imagesList.length;
+      updateLightboxImage();
+      resetTransform();
+    }
+
+    function updateLightboxImage() {
+      const img = imagesList[currentIdx];
+      const url = typeof img === 'object' ? img.url : img;
+      lightboxImg.src = url;
+      lightboxCounter.textContent = `${currentIdx + 1} / ${imagesList.length}`;
+    }
+
+    function resetTransform() {
+      scale = 1;
+      translateX = 0;
+      translateY = 0;
+      applyTransform(true); // 使用過渡動畫還原
+    }
+
+    function applyTransform(animate = false) {
+      if (animate) {
+        lightboxImg.style.transition = 'transform 0.25s ease-out';
+      } else {
+        lightboxImg.style.transition = 'none';
+      }
+      lightboxImg.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+    }
+
+    // ── 觸控手勢事件綁定 ──
+    const viewer = document.getElementById('lightboxViewer');
+
+    // 1. 指標壓下 (Pointer Down)
+    viewer.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      activePointers.set(e.pointerId, e);
+
+      const pts = Array.from(activePointers.values());
+
+      if (pts.length === 1) {
+        // 單指：拖曳移動 (Pan) 或 左右滑動切換 (Swipe)
+        isPinching = false;
+        touchStartX = e.clientX;
+        touchStartY = e.clientY;
+        baseTranslateX = translateX;
+        baseTranslateY = translateY;
+        
+        // 只有在放大狀態下才是 Panning
+        isSwiping = (scale === 1);
+      } 
+      else if (pts.length === 2) {
+        // 雙指：進入 Pinch-to-zoom 狀態
+        isPinching = true;
+        isSwiping = false;
+        
+        // 計算初始距離
+        initialPinchDistance = getDistance(pts[0], pts[1]);
+        baseScale = scale;
+        baseTranslateX = translateX;
+        baseTranslateY = translateY;
+
+        // 計算雙指中心點
+        pinchCenter = getMidpoint(pts[0], pts[1]);
+      }
+    });
+
+    // 2. 指標移動 (Pointer Move)
+    viewer.addEventListener('pointermove', (e) => {
+      if (!activePointers.has(e.pointerId)) return;
+      e.preventDefault();
+      activePointers.set(e.pointerId, e);
+
+      const pts = Array.from(activePointers.values());
+
+      if (isPinching && pts.length === 2) {
+        // 雙指縮放
+        const currentDistance = getDistance(pts[0], pts[1]);
+        const newScale = baseScale * (currentDistance / initialPinchDistance);
+        
+        // 限制縮放範圍在 1x 到 5x 之間
+        scale = Math.max(1, Math.min(newScale, 5));
+        
+        // 如果縮放回到 1，將位移歸零
+        if (scale === 1) {
+          translateX = 0;
+          translateY = 0;
+        }
+        applyTransform();
+      } 
+      else if (!isPinching && pts.length === 1) {
+        // 單指手勢
+        const deltaX = e.clientX - touchStartX;
+        const deltaY = e.clientY - touchStartY;
+
+        if (scale > 1) {
+          // 放大狀態下：拖曳圖片移動 (Pan)
+          translateX = baseTranslateX + deltaX;
+          translateY = baseTranslateY + deltaY;
+          applyTransform();
+        } else {
+          // 原始大小狀態下：提供滑動視差反饋
+          lightboxImg.style.transition = 'none';
+          lightboxImg.style.transform = `translate(${deltaX * 0.4}px, 0px) scale(1)`;
+        }
+      }
+    });
+
+    // 3. 指標釋放 (Pointer Up)
+    viewer.addEventListener('pointerup', (e) => {
+      e.preventDefault();
+      
+      const pts = Array.from(activePointers.values());
+      
+      if (pts.length === 1 && scale === 1) {
+        // 計算滑動距離
+        const deltaX = e.clientX - touchStartX;
+        const deltaY = e.clientY - touchStartY;
+        
+        // 判斷是否為快速滑動左右切換 (Swipe)
+        if (Math.abs(deltaX) > 80 && Math.abs(deltaY) < 100) {
+          if (deltaX > 0) {
+            prevImage();
+          } else {
+            nextImage();
+          }
+        } else {
+          resetTransform(); // 未達閥值，彈回原位
+        }
+      }
+      
+      activePointers.delete(e.pointerId);
+      if (activePointers.size === 0) {
+        isPinching = false;
+        isSwiping = false;
+      }
+    });
+
+    // 4. 指標取消 (Pointer Cancel)
+    viewer.addEventListener('pointercancel', (e) => {
+      activePointers.delete(e.pointerId);
+      if (activePointers.size === 0) {
+        isPinching = false;
+        isSwiping = false;
+        resetTransform();
+      }
+    });
+
+    // 5. 雙擊快速縮放 (Double Tap)
+    viewer.addEventListener('click', (e) => {
+      const now = new Date().getTime();
+      const doubleTapDelay = 300; // 雙擊檢測間隔毫秒數
+      
+      if (now - lastTapTime < doubleTapDelay) {
+        // 雙擊觸發
+        if (scale > 1) {
+          resetTransform();
+        } else {
+          // 放大 2.5 倍
+          scale = 2.5;
+          applyTransform(true);
+        }
+        e.stopPropagation(); // 阻止氣泡傳播，防範觸發關閉燈箱
+      }
+      lastTapTime = now;
+    });
+
+    // ── 輔助數學函數 ──
+    function getDistance(p1, p2) {
+      return Math.hypot(p2.clientX - p1.clientX, p2.clientY - p1.clientY);
+    }
+
+    function getMidpoint(p1, p2) {
+      return {
+        x: (p1.clientX + p2.clientX) / 2,
+        y: (p1.clientY + p2.clientY) / 2
+      };
+    }
+
+    // ── 按鈕事件綁定 ──
+    btnClose.addEventListener('click', closeLightbox);
+    btnPrev.addEventListener('click', (e) => { e.stopPropagation(); prevImage(); });
+    btnNext.addEventListener('click', (e) => { e.stopPropagation(); nextImage(); });
+
+    // 鍵盤操控 (電腦端支援)
+    document.addEventListener('keydown', (e) => {
+      if (!lightbox.classList.contains('show')) return;
+      if (e.key === 'Escape') closeLightbox();
+      if (e.key === 'ArrowLeft') prevImage();
+      if (e.key === 'ArrowRight') nextImage();
+    });
+  </script>
+</body>
+</html>
