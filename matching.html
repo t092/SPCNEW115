@@ -486,6 +486,7 @@ body {
   <button class="btn-test" id="btnLoadTest" title="載入測試資料">📥 載入測試資料</button>
   <button class="btn-danger" id="btnClearAll" title="清除所有資料">🗑 清除全部</button>
   <span class="spacer"></span>
+  <button id="btnOtherData" title="切換至其他資料頁面">🖼️ 其他資料</button>
   <button id="btnStudentData" title="切換至學生資料頁面">🧑 學生資料</button>
   <button class="btn-counseling" id="btnCounseling">📋 認輔完成</button>
   <button class="btn-class-done" id="btnClassResult">🏫 班級完成</button>
@@ -766,6 +767,7 @@ function clearAll() {
 
 document.getElementById('btnLoadTest').addEventListener('click', loadTestData);
 document.getElementById('btnClearAll').addEventListener('click', () => { if (confirm('確定要清除所有資料嗎？此動作無法復原。')) clearAll(); });
+document.getElementById('btnOtherData').addEventListener('click', () => { window.location.href = 'gallery.html'; });
 document.getElementById('btnStudentData').addEventListener('click', () => { window.location.href = 'index.html'; });
 
 // ========== CONFIRM MODAL ==========
