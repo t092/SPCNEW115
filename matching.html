@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>教師/學生/班級配對系統</title>
+<!-- SheetJS Library for Excel Export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -454,6 +456,15 @@ body {
   border-color: #2d5a87;
 }
 .modal-actions .btn-primary:hover { background: #1a3a5c; }
+.modal-actions .btn-success {
+  background: #2e8b57;
+  color: #fff;
+  border-color: #2e8b57;
+}
+.modal-actions .btn-success:hover {
+  background: #21633e;
+  border-color: #21633e;
+}
 .modal-actions .btn-cancel:hover { background: #f0f0f0; }
 .modal .close-x {
   position: absolute;
@@ -568,6 +579,7 @@ body {
     <h2>安置結果</h2>
     <div id="resultContent"></div>
     <div class="modal-actions">
+      <button class="btn-success" id="btnExportExcel" style="display:none;">📥 匯出 Excel</button>
       <button class="btn-primary" id="btnResultClose">關閉</button>
     </div>
   </div>
@@ -608,6 +620,7 @@ let teachers = {};
 let classes = {};
 let currentDrag = null;
 let confirmResolve = null;
+let lastPlacementResults = [];
 
 onValue(studentsRef, snapshot => {
   students = snapshot.val() || {};
@@ -800,10 +813,15 @@ function showPlacementResult() {
     return a.studentName.localeCompare(b.studentName, 'zh-Hant');
   });
 
+  lastPlacementResults = results; // Save for Excel export
+
   const container = document.getElementById('resultContent');
+  const exportBtn = document.getElementById('btnExportExcel');
   if (results.length === 0) {
     container.innerHTML = '<div class="empty-result">尚無完整配對的資料<br><small>（學生需同時配對教師與班級才會顯示）</small></div>';
+    if (exportBtn) exportBtn.style.display = 'none';
   } else {
+    if (exportBtn) exportBtn.style.display = 'inline-block';
     let html = '<table><thead><tr><th>班級</th><th>導師</th><th>學生</th></tr></thead><tbody>';
     results.forEach(r => {
       html += `<tr><td>${escapeHtml(r.className)}</td><td>${escapeHtml(r.teacherName)}</td><td>${escapeHtml(r.studentName)}</td></tr>`;
@@ -827,6 +845,32 @@ function escapeHtml(str) {
 document.getElementById('btnPlacement').addEventListener('click', showPlacementResult);
 document.getElementById('btnResultClose').addEventListener('click', () => {
   document.getElementById('resultModalOverlay').style.display = 'none';
+});
+
+document.getElementById('btnExportExcel').addEventListener('click', () => {
+  if (lastPlacementResults.length === 0) return;
+  
+  const data = [
+    ["班級", "導師", "學生"]
+  ];
+  lastPlacementResults.forEach(r => {
+    data.push([r.className, r.teacherName, r.studentName]);
+  });
+  
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  
+  // Set automatic column widths
+  const wscols = [
+    { wch: 18 }, // Class
+    { wch: 18 }, // Teacher
+    { wch: 18 }  // Student
+  ];
+  ws['!cols'] = wscols;
+  
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "安置結果");
+  
+  XLSX.writeFile(wb, "115學年度特殊生安置結果.xlsx");
 });
 
 // ========== COUNSELING RESULT ==========
